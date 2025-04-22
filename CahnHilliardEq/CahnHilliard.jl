@@ -69,7 +69,7 @@ M = 1.0
 # The double-well potential f(c) is used and its derivative is needed for the 
 # chemical potential.
 f(c) = 100*c^2*(1-c)^2                       # Free energy density.
-dfdc = (c) -> 100*(4*c^3 - 6*c^2 + 2*c)       # Derivative of f(c) with respect to c.
+dfdc = (c) -> 100*(4*c*c*c - 6*c*c + 2*c)       # Derivative of f(c) with respect to c.
 
 #------------------------------------------------------------------------------
 # Residuals for the Cahn–Hilliard Equations
