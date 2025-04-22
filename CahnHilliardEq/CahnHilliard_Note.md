@@ -308,7 +308,17 @@ The nonlinear solver (Newton’s method) along with automatic differentiation en
 
 ---
 
-## 11. Concluding Remarks
+## 11. Results
+
+The initial configuration $c$:
+
+<img width="493" alt="init_c" src="https://github.com/user-attachments/assets/b736ec6f-673b-44d9-bd69-ada8153757d6" />
+
+The final configuration $c$:
+
+<img width="498" alt="final_c" src="https://github.com/user-attachments/assets/7376315c-6d8b-4c2d-91ce-a801d2b2f025" />
+
+## 12. Concluding Remarks
 
 This code provides a complete pipeline for simulating phase separation using the Cahn–Hilliard model:
 - **Mesh and FE Spaces:** A Cartesian grid and appropriate finite element spaces are defined.
