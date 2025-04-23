@@ -148,7 +148,7 @@ end
 
 - **Weak Formulation:**
   - $u$-Equation:
-    $\int_\Omega \left( \frac{\partial u}{\partial t}. u^* - (1 + u^2v - 4.4u)\, u^* + \alpha. \nabla u \cdot \nabla u^* - f(t,x). u^* \right) d\Omega = 0$,
+    $\int_\Omega \left( \frac{\partial u}{\partial t}. u^* - (1 + u^2v - 4.4u). u^* + \alpha. \nabla u \cdot \nabla u^* - f(t,x). u^* \right) d\Omega = 0$,
   - $v$-Equation:
     $\int_\Omega \left( \frac{\partial v}{\partial t}. v^* - (3.4u - u^2v). v^* + \alpha. \nabla v \cdot \nabla v^* \right) d\Omega = 0$.
 
