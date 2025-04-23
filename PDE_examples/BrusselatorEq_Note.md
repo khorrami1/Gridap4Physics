@@ -1,7 +1,3 @@
-Below is a set of Markdown notes that explain the code in detail, including the key mathematical equations behind the formulation.
-
----
-
 # Brusselator PDE Solver Using Gridap
 
 This document explains the code that sets up and solves a time-dependent reaction-diffusion system—a Brusselator model—using the Gridap package in Julia. The code uses finite element methods (FEM) for spatial discretization and a Theta (Crank-Nicolson) method for time integration.
@@ -29,7 +25,7 @@ The code uses first-order Lagrangian (linear) finite elements to approximate the
 - **Reference Finite Element:** Defined using Lagrangian elements of order 1.
 - **Trial and Test Spaces:**  
   - $U$ and $V$ are built as transient trial spaces (for time-dependent problems).  
-  - Corresponding test spaces $U_$ and $V_$ are used to form the weak formulation.
+  - Corresponding test spaces $U\\\_$ and $V\\\_$ are used to form the weak formulation.
 
 ```julia
 order = 1
@@ -54,11 +50,8 @@ $\frac{\partial u}{\partial t} - g_1(u,v) - \alpha \Delta u = f(t,x)$
 with the reaction function:
 $g_1(u,v) = 1 + u^2v - 4.4u$,
 and a forcing function $f(t,x)$ defined by:
-$$f(t, x) =
-\begin{cases}
-5.0, & \text{if } \|(x - [0.3, 0.6])\|^2 \le 0.1^2 \text{ and } t \geq 1.1,\\[1mm]
-0, & \text{otherwise.}
-\end{cases}$$
+
+![image](https://github.com/user-attachments/assets/4fa778bd-685e-4ca4-8912-e174febd544e)
 
 #### For $v$:
 $\frac{\partial v}{\partial t} - g_2(u,v) - \alpha \Delta v = 0$,
@@ -67,13 +60,13 @@ $g_2(u,v) = 3.4u - u^2v$.
 
 ### Weak Formulation
 
-Multiplying the equations by test functions (denoted $u^*$ and $v^*$) and integrating over the domain $\Omega$ leads to:
+Multiplying the equations by test functions (denoted $u^\*$ and $v^\*$) and integrating over the domain $\Omega$ leads to:
 
 #### $u$-Equation:
-$\int_{\Omega} \left( \frac{\partial u}{\partial t}\, u^* - g_1(u,v)\, u^* + \alpha \nabla u \cdot \nabla u^* - f(t,x)\, u^* \right) \, d\Omega = 0$,
+$\int_{\Omega} \left( \frac{\partial u}{\partial t}. u^* - g_1(u,v). u^* + \alpha \nabla u \cdot \nabla u^* - f(t,x). u^* \right) d\Omega = 0$,
 
 #### $v$-Equation:
-$\int_{\Omega} \left( \frac{\partial v}{\partial t}\, v^* - g_2(u,v)\, v^* + \alpha \nabla v \cdot \nabla v^* \right) \, d\Omega = 0$.
+$\int_{\Omega} \left( \frac{\partial v}{\partial t}. v^* - g_2(u,v). v^* + \alpha \nabla v \cdot \nabla v^* \right) d\Omega = 0$.
 
 In the code, these equations are defined through the residual functions `res1` and `res2` and then combined:
 
@@ -149,15 +142,15 @@ end
 
 - **Model PDEs:**
   - For $u$:
-    $\frac{\partial u}{\partial t} - \left(1 + u^2v - 4.4u\right) - \alpha\,\Delta u = f(t,x)$
+    $\frac{\partial u}{\partial t} - \left(1 + u^2v - 4.4u\right) - \alpha.\Delta u = f(t,x)$
   - For $v$:
-    $\frac{\partial v}{\partial t} - \left(3.4u - u^2v\right) - \alpha\,\Delta v = 0$.
+    $\frac{\partial v}{\partial t} - \left(3.4u - u^2v\right) - \alpha.\Delta v = 0$.
 
 - **Weak Formulation:**
   - $u$-Equation:
-    $\int_\Omega \left( \frac{\partial u}{\partial t}\, u^* - (1 + u^2v - 4.4u)\, u^* + \alpha\, \nabla u \cdot \nabla u^* - f(t,x)\, u^* \right) d\Omega = 0$,
+    $\int_\Omega \left( \frac{\partial u}{\partial t}. u^* - (1 + u^2v - 4.4u)\, u^* + \alpha. \nabla u \cdot \nabla u^* - f(t,x). u^* \right) d\Omega = 0$,
   - $v$-Equation:
-    $\int_\Omega \left( \frac{\partial v}{\partial t}\, v^* - (3.4u - u^2v)\, v^* + \alpha\, \nabla v \cdot \nabla v^* \right) d\Omega = 0$.
+    $\int_\Omega \left( \frac{\partial v}{\partial t}. v^* - (3.4u - u^2v). v^* + \alpha. \nabla v \cdot \nabla v^* \right) d\Omega = 0$.
 
 - **Time Integration:**
   - **Method:** Crank-Nicolson ($\theta = 0.5$)
@@ -169,7 +162,3 @@ end
 
 - **Output:**  
   VTK files are generated for each time step, allowing for post-processing and visualization of the solution fields $u$ and $v$.
-
----
-
-These notes provide a comprehensive explanation of both the code workflow and the underlying mathematical framework used to model and solve the Brusselator PDE system.
