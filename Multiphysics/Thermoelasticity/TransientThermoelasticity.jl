@@ -5,6 +5,7 @@
 
 using Gridap                    # Core Gridap functionality
 import Gridap.Fields: ε         # Strain operator ε(u)
+using Gridap.TensorValues
 
 #------------------------------
 # 1. Domain and Mesh Definition
@@ -39,10 +40,12 @@ const ρ  = 2700.0               # density
 const cV = 910e-6 * ρ           # specific heat per unit volumr at constant strain
 const k  = 237e-6               # Thermal conductivity
 
+const I2 = SymTensorValue{2,Float64}(1.0,0.0,1.0)
+
 # Thermoelastic stress: σ(ε, dT) = λ·tr(ε)I + 2μ ε − α(3λ+2μ)dT I
-σ(ϵ, dT) = λ*tr(ϵ)*one(ϵ) + 2*μ*ϵ - κ*dT*one(ϵ)
+σ(ε_in, T_in) = λ*tr(ε_in)*I2 + 2*μ*ε_in - κ*(T_in - T0)*I2
 # Pure thermal stress for Neumann-like term: σT(dT) = −α(3λ+2μ)dT I
-σT(dT)  = -κ*dT*one(TensorValue{2,2,Float64})
+σT(T_in)  = -κ*(T_in - T0)*I2
 
 #------------------------------
 # 4. Finite Element Spaces
@@ -50,18 +53,13 @@ const k  = 237e-6               # Thermal conductivity
 # Displacement: vector field, Dirichlet on lateral_sides
 order     = 1
 reffe_u   = ReferenceFE(lagrangian, VectorValue{2,Float64}, order)
-testFE_u  = TestFESpace( model, reffe_u, dirichlet_tags = "lateral_sides" )
-trialFE_u = TrialFESpace(testFE_u, VectorValue(0.0,0.0))  # zero displacement bc
+V0_u  = TestFESpace( model, reffe_u, dirichlet_tags = "lateral_sides" )
 
 # Temperature: scalar field, Dirichlet on bottom, top, and lateral_sides
 reffe_T   = ReferenceFE(lagrangian, Float64, order)
-testFE_T  = TestFESpace( model, reffe_T,
+V0_T  = TestFESpace( model, reffe_T,
                          dirichlet_tags = ["bottom","top","lateral_sides"] )
-trialFE_T = TransientTrialFESpace(testFE_T, [(t)->50.0, (t)->0.0, (t)->0.0])        # prescribed T on tags
-
-X = TransientMultiFieldFESpace([trialFE_u, trialFE_T])
-Y = MultiFieldFESpace([testFE_u, testFE_T])
-
+V0 = MultiFieldFESpace([V0_u, V0_T])
 #------------------------------
 # 5. Integration Measure
 #------------------------------
@@ -69,39 +67,30 @@ Y = MultiFieldFESpace([testFE_u, testFE_T])
 degree  = 2                       # quadrature degree
 dΩ      = Measure(Ω, degree)     # integration measure over Ω
 
-# #------------------------------
-# # 6. Thermal Subproblem
-# #------------------------------
-# # Bilinear form a_T(T, Tt) = ∫ ∇T ⋅ ∇Tt dΩ
-# a_T(T, Tt) = ∫( ∇(T) ⋅ ∇(Tt) ) * dΩ
-# # Linear form b_T(Tt) = ∫ 0 · Tt dΩ (no volumetric heat source)
-# b_T(Tt)   = ∫( 0.0 * Tt ) * dΩ
 
-# # Assemble and solve for temperature Th
-# op_T = AffineFEOperator(a_T, b_T, trialFE_T, testFE_T)
-# Th   = solve(op_T)
+function stepDispTemp(uh_in, Th_in, dt, time, maxSimTime)
+    u_bc1(x) = VectorValue(0., 0.)
+    U_u = TrialFESpace(V0_u,  u_bc1)
+    # T_bc1(x) = 50.0*(time-10.0)/maxSimTime
+    T_bc1(x) = 50.0
+    T_bc2(x) = 0.
+    T_bc3(x) = 0. 
+    U_T = TrialFESpace(V0_T, [T_bc1, T_bc2, T_bc3])
+    U = MultiFieldFESpace([U_u, U_T])
+    res((u,T), (v, w)) = ∫( (ε(v) ⊙ (σ∘(ε(u), T))) + w*(cV*(T-Th_in)/dt + κ*T0*tr(ε(u)-ε(uh_in))/dt) + k*∇(T)⋅∇(w) )dΩ
+    op = FEOperator(res, U, V0)
+    uh_out, Th_out = Gridap.solve(op)
+    return uh_out, Th_out
+end
 
-# #------------------------------
-# # 7. Elasticity Subproblem
-# #------------------------------
-# # Bilinear form a_u(u, v) = ∫ σ(ε(u), Th) : ε(v) dΩ
-# a_u(u, v) = ∫( σ∘(ε(u), Th) ⊙ ε(v) ) * dΩ
-# # Linear form b_u(v) = ∫ σT(Th) : ε(v) dΩ (thermal load)
-# b_u(v)   = ∫( σT∘(Th) ⊙ ε(v) ) * dΩ
+simTimes = 10 .^ range(1, 4, 101)
+maxSimTime = maximum(simTimes)
+Δts = [simTimes[i+1] - simTimes[i] for i in 1:length(simTimes)-1]
 
-# # Assemble and solve for displacement uh
-# op_u = AffineFEOperator(a_u, b_u, trialFE_u, testFE_u)
-# uh   = solve(op_u)
+uh = zero(V0_u)
+Th = zero(V0_T)
 
-# res_mech((u, T), (v, Tt)) = ∫(σ∘(ε(u), T-T0) ⊙ ε(v)) * dΩ
-# res_thermal(t, (u, T), (v, Tt)) =  ∫( ∇(T) ⋅ ∇(Tt) ) * dΩ
-
-# # As a TransientFEOperator
-# res(t, (u, T), (v, Tt)) = res_mech((u, T), (v, Tt)) + res_thermal(t, (u, T), (v, Tt))
-
-# # Nonlinear operator for the full nonlinear formulation.
-# tfeop_nl = TransientFEOperator(res, X, Y)
-
+uh, Th = stepDispTemp(uh, Th, Δts[1], simTimes[1], maxSimTime )
 
 #------------------------------
 # 8. Post-processing: VTK output
@@ -111,14 +100,23 @@ if !isdir(outdir)
     mkdir(outdir)               # create directory if missing
 end
 # # Write displacement u, temperature T, and total stress σ(ε(u),Th)
-# writevtk(Ω, joinpath(outdir, "LinearThermalelasticity"),
-#          cellfields = ["u" => uh,
-#                        "T" => Th,
-#                        "sigma" => σ∘(ε(uh), Th)])
+writevtk(Ω, joinpath(outdir, "TransientThermoelasticity_10"),
+         cellfields = ["u" => uh,
+                       "T" => Th,
+                       "sigma" => σ∘(ε(uh), Th)])
 
-timeSteps = 10 .^ range(1, 4, 101)
-Δts = [timeSteps[i+1] - timeSteps[i] for i in 1:length(timeSteps)-1]
 
-for time in timeSteps
-    
-end 
+createpvd(joinpath(outdir, "TransientThermoelasticity")) do pvd               
+    for i in 1:length(simTimes)-1
+        simTime = simTimes[i+1]
+        roundedSimTime = Int(round(simTime))
+        @show i, simTime
+        global uh, Th = stepDispTemp(uh, Th, Δts[i], simTime, maxSimTime)
+        if mod(i, 10)==0
+            pvd[i] = createvtk(Ω, joinpath(outdir, "TransientThermoelasticity_$roundedSimTime.vtu"),
+                                cellfields = ["u" => uh,
+                                              "T" => Th,
+                                              "sigma" => σ∘(ε(uh), Th)])
+        end
+    end 
+end
