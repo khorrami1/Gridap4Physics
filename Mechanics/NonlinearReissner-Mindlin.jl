@@ -32,6 +32,7 @@ function main()                        # Entry point for the script
   # Unknowns: (u_x, u_y, w, θx, θy)
   reffe_scalar = ReferenceFE(lagrangian, Float64, 1)                    # P¹ scalar FE for w
   reffe_vector = ReferenceFE(lagrangian, VectorValue{2, Float64}, 1)    # P¹ vector FE (2D) for u, θ
+  reffe_vec3 = ReferenceFE(lagrangian, VectorValue{3,Float64}, 1)
 
   g_zeroV(x) = VectorValue(0.0, 0.0)   # Zero vector Dirichlet data (for u on the right side)
   g_zero(x)  = 0.0                     # Zero scalar Dirichlet data (for w on the right side)
@@ -45,6 +46,8 @@ function main()                        # Entry point for the script
 
   V_th = TestFESpace(model, reffe_vector; conformity=:H1, dirichlet_tags=["left"])  # H¹ test space for θ, prescribe on left
   U_th = TrialFESpace(V_th, g_th)      # Trial space for θ with Dirichlet data g_th
+
+  V3 = FESpace(model, reffe_vec3; conformity=:H1)
 
   V = MultiFieldFESpace([V_u, V_w, V_th])  # Block test space for (u, w, θ)
   U = MultiFieldFESpace([U_u, U_w, U_th])  # Block trial space for (u, w, θ)
@@ -117,14 +120,16 @@ function main()                        # Entry point for the script
 
   solver = FESolver(nls)                # Wrap nonlinear solver for FE problems
   uh, wh, θh = solve(solver, op)        # Solve the nonlinear system → solution fields (u, w, θ)
+  u3h = interpolate_everywhere(x -> VectorValue(uh(x)[1], uh(x)[2], wh(x)), V3)
 
   # --- Output ---
   writevtk(Ω, "gridap_large_strain_shell";   # Export results to VTK for Paraview/VisIt
     cellfields = [
-      "u" => uh,                        # In-plane displacement vector field
-      "w" => wh,                        # Transverse displacement scalar field
-      "θ" => θh                         # Rotation vector field
+      "u3h" => u3h,                     # 3d displacement vector field
+      "θ" => θh,                        # Rotation vector field
+      "∇θ" => ∇(θh)
     ])
+    return uh, wh, θh
 end
 
-main()                                  # Run the main function
+uh, wh, θh =  main()                                  # Run the main function
